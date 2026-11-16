@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini - Web AI Assistant</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gemini: {
+                            blue: '#1a73e8',
+                            purple: '#8ab4f8',
+                            darkBg: '#131314',
+                            sidebarDark: '#1e1f20',
+                            cardDark: '#1e1f20',
+                            borderDark: '#333537',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.js"></script>
+    <!-- Highlight.js for code blocks -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(150, 150, 150, 0.3);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(150, 150, 150, 0.5);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #4285f4, #9b72cb, #d96570);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .message-content pre {
+            background-color: #1e1e1e !important;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 0.75rem;
+            margin-bottom: 0.75rem;
+            overflow-x: auto;
+        }
+        .message-content code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.9em;
+        }
+        .message-content p {
+            margin-bottom: 0.75rem;
+        }
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+        .message-content ul, .message-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 0.75rem;
+            list-style-type: disc;
+        }
+        .message-content ol {
+            list-style-type: decimal;
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-[#131314] text-gray-800 dark:text-gray-100 h-screen flex flex-col overflow-hidden font-sans transition-colors duration-200">
+
+    <!-- Top Navigation Bar -->
+    <header class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-[#333537] bg-white dark:bg-[#131314] z-20 shrink-0">
+        <div class="flex items-center space-x-3">
+            <button id="sidebarToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-[#333537] text-gray-600 dark:text-gray-300 transition" title="Toggle Sidebar">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="startNewChat()">
+                <i class="fa-solid fa-sparkles text-xl text-blue-500 dark:text-blue-400"></i>
+                <span class="text-xl font-medium tracking-wide">Gemini</span>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-[#333537] text-gray-500 dark:text-gray-400 font-semibold">Advanced</span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <!-- API Key Button -->
+            <button onclick="openApiKeyModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-[#004a77]/30 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-[#004a77]/50 text-sm font-medium transition">
+                <i class="fa-solid fa-key"></i>
+                <span class="hidden sm:inline">API Key</span>
+            </button>
+            <!-- Theme Toggle -->
+            <button onclick="toggleTheme()" class="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-[#333537] text-gray-600 dark:text-gray-300 transition" title="Toggle Theme">
+                <i id="themeIcon" class="fa-solid fa-moon"></i>
+            </button>
+            <!-- User Avatar -->
+            <div class="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm cursor-pointer shadow-sm">
+                U
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="w-72 bg-[#f9fbfd] dark:bg-[#1e1f20] border-r border-gray-200 dark:border-[#333537] flex flex-col transition-all duration-300 absolute md:relative z-10 h-full -translate-x-full md:translate-x-0 shrink-0">
+            <!-- New Chat Button -->
+            <div class="p-3">
+                <button onclick="startNewChat()" class="flex items-center space-x-3 w-full px-4 py-3 rounded-full bg-gray-200/70 hover:bg-gray-200 dark:bg-[#2b2c2f] dark:hover:bg-[#38393d] text-gray-800 dark:text-gray-200 font-medium text-sm transition shadow-sm">
+                    <i class="fa-solid fa-plus text-blue-500 dark:text-blue-400"></i>
+                    <span>New chat</span>
+                </button>
+            </div>
+
+            <!-- Recent Chats List -->
+            <div class="flex-1 overflow-y-auto px-3 py-2 space-y-1" id="chatHistoryList">
+                <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 px-3 py-2 uppercase tracking-wider">Recent</div>
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-3 border-t border-gray-200 dark:border-[#333537] text-xs text-gray-500 dark:text-gray-400 space-y-2">
+                <div class="flex items-center space-x-2 px-3 py-1.5 hover:bg-gray-200/50 dark:hover:bg-[#333537] rounded-lg cursor-pointer">
+                    <i class="fa-solid fa-circle-question w-4"></i>
+                    <span>Help & FAQ</span>
+                </div>
+                <div class="flex items-center space-x-2 px-3 py-1.5 hover:bg-gray-200/50 dark:hover:bg-[#333537] rounded-lg cursor-pointer" onclick="clearAllHistory()">
+                    <i class="fa-solid fa-trash-can w-4 text-red-500"></i>
+                    <span class="text-red-500">Clear all chats</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#131314] relative">
+            
+            <!-- Messages Scrollable View -->
+            <div id="chatScrollContainer" class="flex-1 overflow-y-auto px-4 py-6 md:px-24 lg:px-48 space-y-6">
+                
+                <!-- Welcome State (Visible when no chat started) -->
+                <div id="welcomeScreen" class="flex flex-col items-start justify-center h-full max-w-3xl mx-auto space-y-8 py-12">
+                    <div class="space-y-2">
+                        <h1 class="text-4xl md:text-5xl font-semibold gradient-text tracking-tight">
+                            Hello, Human
+                        </h1>
+                        <p class="text-3xl md:text-4xl font-semibold text-gray-400 dark:text-gray-500">
+                            How can I help you today?
+                        </p>
+                    </div>
+
+                    <!-- Suggestion Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full">
+                        <div onclick="sendSuggestion('Design a stunning landing page hero section in HTML and Tailwind CSS')" class="p-4 rounded-2xl bg-[#f0f4f9] dark:bg-[#1e1f20] hover:bg-[#e2e8f0] dark:hover:bg-[#2d2e30] cursor-pointer transition flex flex-col justify-between h-36 border border-transparent dark:border-[#333537] group">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Design a stunning landing page hero section</span>
+                            <div class="self-end p-2 rounded-full bg-white dark:bg-[#131314] text-blue-500 opacity-0 group-hover:opacity-100 transition shadow-sm">
+                                <i class="fa-solid fa-code text-xs"></i>
+                            </div>
+                        </div>
+                        <div onclick="sendSuggestion('Give me 5 healthy and quick meal prep ideas for busy workdays')" class="p-4 rounded-2xl bg-[#f0f4f9] dark:bg-[#1e1f20] hover:bg-[#e2e8f0] dark:hover:bg-[#2d2e30] cursor-pointer transition flex flex-col justify-between h-36 border border-transparent dark:border-[#333537] group">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Quick meal prep ideas for busy workdays</span>
+                            <div class="self-end p-2 rounded-full bg-white dark:bg-[#131314] text-orange-500 opacity-0 group-hover:opacity-100 transition shadow-sm">
+                                <i class="fa-solid fa-utensils text-xs"></i>
+                            </div>
+                        </div>
+                        <div onclick="sendSuggestion('Explain quantum computing like I am 10 years old with an easy analogy')" class="p-4 rounded-2xl bg-[#f0f4f9] dark:bg-[#1e1f20] hover:bg-[#e2e8f0] dark:hover:bg-[#2d2e30] cursor-pointer transition flex flex-col justify-between h-36 border border-transparent dark:border-[#333537] group">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Explain quantum computing with an easy analogy</span>
+                            <div class="self-end p-2 rounded-full bg-white dark:bg-[#131314] text-purple-500 opacity-0 group-hover:opacity-100 transition shadow-sm">
+                                <i class="fa-solid fa-lightbulb text-xs"></i>
+                            </div>
+                        </div>
+                        <div onclick="sendSuggestion('Write a Python script to scrape headlines from a news website')" class="p-4 rounded-2xl bg-[#f0f4f9] dark:bg-[#1e1f20] hover:bg-[#e2e8f0] dark:hover:bg-[#2d2e30] cursor-pointer transition flex flex-col justify-between h-36 border border-transparent dark:border-[#333537] group">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Write a Python script to scrape headlines</span>
+                            <div class="self-end p-2 rounded-full bg-white dark:bg-[#131314] text-green-500 opacity-0 group-hover:opacity-100 transition shadow-sm">
+                                <i class="fa-solid fa-terminal text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Log (Appended dynamically) -->
+                <div id="chatLog" class="space-y-6 max-w-3xl mx-auto w-full hidden"></div>
+            </div>
+
+            <!-- Input Bar Section -->
+            <div class="px-4 py-3 bg-white dark:bg-[#131314] md:px-24 lg:px-48 shrink-0">
+                <div class="max-w-3xl mx-auto">
+                    <div class="relative flex flex-col rounded-3xl bg-[#f0f4f9] dark:bg-[#1e1f20] border border-transparent focus-within:border-gray-300 dark:focus-within:border-gray-600 shadow-sm transition">
+                        
+                        <!-- File attachment preview indicator (if any) -->
+                        <div id="filePreviewContainer" class="hidden px-4 pt-3 flex items-center space-x-2">
+                            <div class="relative inline-flex items-center bg-white dark:bg-[#2b2c2f] px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs">
+                                <i class="fa-solid fa-image text-blue-500 mr-2"></i>
+                                <span id="fileName" class="truncate max-w-xs">image.png</span>
+                                <button onclick="removeAttachedFile()" class="ml-2 text-gray-400 hover:text-red-500">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Textarea Input -->
+                        <textarea id="userInput" rows="1" placeholder="Enter a prompt here..." class="w-full px-5 py-4 bg-transparent outline-none resize-none text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm md:text-base max-h-40" oninput="autoResize(this)" onkeydown="handleKeyPress(event)"></textarea>
+
+                        <!-- Action Toolbar -->
+                        <div class="flex items-center justify-between px-3 pb-3">
+                            <div class="flex items-center space-x-1">
+                                <!-- Upload Image/File Button -->
+                                <label class="p-2 rounded-full hover:bg-gray-200/70 dark:hover:bg-[#38393d] text-gray-600 dark:text-gray-300 cursor-pointer transition" title="Upload Image or File">
+                                    <i class="fa-solid fa-image text-lg"></i>
+                                    <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                                </label>
+                                <!-- Mic/Voice Input Button -->
+                                <button onclick="toggleVoiceInput()" id="micBtn" class="p-2 rounded-full hover:bg-gray-200/70 dark:hover:bg-[#38393d] text-gray-600 dark:text-gray-300 transition" title="Voice Dictation">
+                                    <i class="fa-solid fa-microphone text-lg"></i>
+                                </button>
+                            </div>
+
+                            <div class="flex items-center space-x-2">
+                                <!-- Send Button -->
+                                <button id="sendBtn" onclick="submitPrompt()" class="p-2.5 rounded-full bg-gray-300 dark:bg-[#38393d] text-gray-500 dark:text-gray-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition shadow-sm disabled:opacity-40 disabled:cursor-not-allowed" disabled title="Send Message">
+                                    <i class="fa-solid fa-arrow-up text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-2 text-xs text-gray-400 dark:text-gray-500">
+                        Gemini may display inaccurate info, including about people, so double-check its responses.
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- API Key Modal -->
+    <div id="apiKeyModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-[#1e1f20] border border-gray-200 dark:border-[#333537] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold flex items-center space-x-2">
+                    <i class="fa-solid fa-key text-blue-500"></i>
+                    <span>Configure Gemini API Key</span>
+                </h3>
+                <button onclick="closeApiKeyModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                Enter your Google Gemini API key to enable live intelligence. Your key is stored securely in your browser's local storage and is never sent elsewhere. Get one free from <a href="https://aistudio.google.com/" target="_blank" class="text-blue-500 underline">Google AI Studio</a>.
+            </p>
+            <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-[#2b2c2f] border border-gray-300 dark:border-gray-700 outline-none text-sm font-mono">
+            <div class="flex justify-end space-x-3 pt-2">
+                <button onclick="closeApiKeyModal()" class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 dark:hover:bg-[#333537] transition">Cancel</button>
+                <button onclick="saveApiKey()" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition shadow">Save Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        // State Management
+        let chats = JSON.parse(localStorage.getItem('gemini_chats')) || [];
+        let currentChatId = null;
+        let attachedFile = null;
+        let apiKey = localStorage.getItem('gemini_api_key') || '';
+        let recognition = null;
+        let isRecording = false;
+
+        // DOM Elements
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const welcomeScreen = document.getElementById('welcomeScreen');
+        const chatLog = document.getElementById('chatLog');
+        const chatHistoryList = document.getElementById('chatHistoryList');
+        const chatScrollContainer = document.getElementById('chatScrollContainer');
+        const filePreviewContainer = document.getElementById('filePreviewContainer');
+        const fileNameSpan = document.getElementById('fileName');
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            renderChatHistory();
+            if (chats.length > 0) {
+                loadChat(chats[0].id);
+            }
+            
+            // Check theme
+            if (localStorage.getItem('theme') === 'light') {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('themeIcon').className = 'fa-solid fa-sun';
+            }
+
+            // Input listener for send button state
+            userInput.addEventListener('input', () => {
+                sendBtn.disabled = !userInput.value.trim() && !attachedFile;
+            });
+        });
+
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                icon.className = 'fa-solid fa-sun';
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                icon.className = 'fa-solid fa-moon';
+            }
+        }
+
+        // Sidebar toggle for mobile/desktop
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        });
+
+        // Auto-resize textarea
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight) + 'px';
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitPrompt();
+            }
+        }
+
+        // API Key Management
+        function openApiKeyModal() {
+            document.getElementById('apiKeyInput').value = apiKey;
+            document.getElementById('apiKeyModal').classList.remove('hidden');
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            apiKey = document.getElementById('apiKeyInput').value.trim();
+            localStorage.setItem('gemini_api_key', apiKey);
+            closeApiKeyModal();
+            alert('API Key saved successfully!');
+        }
+
+        // File Attachment handling
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(uploadEvent) {
+                    attachedFile = {
+                        name: file.name,
+                        mimeType: file.type,
+                        data: uploadEvent.target.result.split(',')[1]
+                    };
+                    fileNameSpan.textContent = file.name;
+                    filePreviewContainer.classList.remove('hidden');
+                    sendBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeAttachedFile() {
+            attachedFile = null;
+            filePreviewContainer.classList.add('hidden');
+            document.getElementById('fileInput').value = '';
+            sendBtn.disabled = !userInput.value.trim();
+        }
+
+        // Voice Input (Web Speech API)
+        function toggleVoiceInput() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Speech recognition is not supported in your browser.');
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (isRecording) {
+                if (recognition) recognition.stop();
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                isRecording = true;
+                document.getElementById('micBtn').classList.add('text-red-500', 'animate-pulse');
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                userInput.value = transcript;
+                autoResize(userInput);
+                sendBtn.disabled = false;
+            };
+
+            recognition.onerror = () => {
+                stopMic();
+            };
+
+            recognition.onend = () => {
+                stopMic();
+            };
+
+            recognition.start();
+        }
+
+        function stopMic() {
+            isRecording = false;
+            document.getElementById('micBtn').classList.remove('text-red-500', 'animate-pulse');
+        }
+
+        // Chat History Management
+        function startNewChat() {
+            currentChatId = null;
+            welcomeScreen.classList.remove('hidden');
+            chatLog.classList.add('hidden');
+            chatLog.innerHTML = '';
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            removeAttachedFile();
+            renderChatHistory();
+        }
+
+        function renderChatHistory() {
+            chatHistoryList.innerHTML = '<div class="text-xs font-semibold text-gray-400 dark:text-gray-500 px-3 py-2 uppercase tracking-wider">Recent</div>';
+            chats.forEach(chat => {
+                const isActive = chat.id === currentChatId;
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer text-sm transition group ${isActive ? 'bg-gray-200 dark:bg-[#333537] font-medium text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-[#2b2c2f] text-gray-700 dark:text-gray-300'}`;
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2 truncate flex-1" onclick="loadChat('${chat.id}')">
+                        <i class="fa-regular fa-message text-xs opacity-70"></i>
+                        <span class="truncate">${escapeHtml(chat.title)}</span>
+                    </div>
+                    <button onclick="deleteChat(event, '${chat.id}')" class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-1 transition">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                `;
+                chatHistoryList.appendChild(item);
+            });
+        }
+
+        function loadChat(chatId) {
+            const chat = chats.find(c => c.id === chatId);
+            if (!chat) return;
+
+            currentChatId = chatId;
+            welcomeScreen.classList.add('hidden');
+            chatLog.classList.remove('hidden');
+            chatLog.innerHTML = '';
+
+            chat.messages.forEach(msg => {
+                appendMessageToDOM(msg.role, msg.parts);
+            });
+
+            renderChatHistory();
+            scrollToBottom();
+        }
+
+        function deleteChat(e, chatId) {
+            e.stopPropagation();
+            chats = chats.filter(c => c.id !== chatId);
+            localStorage.setItem('gemini_chats', JSON.stringify(chats));
+            if (currentChatId === chatId) {
+                startNewChat();
+            } else {
+                renderChatHistory();
+            }
+        }
+
+        function clearAllHistory() {
+            if (confirm('Are you sure you want to clear all chat history?')) {
+                chats = [];
+                localStorage.removeItem('gemini_chats');
+                startNewChat();
+            }
+        }
+
+        function sendSuggestion(text) {
+            userInput.value = text;
+            autoResize(userInput);
+            submitPrompt();
+        }
+
+        // Core Chat Submission Logic
+        async function submitPrompt() {
+            const text = userInput.value.trim();
+            if (!text && !attachedFile) return;
+
+            if (!apiKey) {
+                if (confirm('No API Key configured. Would you like to enter your Gemini API key now?')) {
+                    openApiKeyModal();
+                }
+                return;
+            }
+
+            // Create new chat session if none active
+            if (!currentChatId) {
+                currentChatId = 'chat_' + Date.now();
+                chats.unshift({
+                    id: currentChatId,
+                    title: text.length > 30 ? text.substring(0, 30) + '...' : text,
+                    messages: []
+                });
+            }
+
+            const currentChat = chats.find(c => c.id === currentChatId);
+
+            // Build user message parts
+            let userParts = [];
+            if (attachedFile) {
+                userParts.push({
+                    inlineData: {
+                        mimeType: attachedFile.mimeType,
+                        data: attachedFile.data
+                    }
+                });
+            }
+            if (text) {
+                userParts.push({ text: text });
+            }
+
+            // Add to chat history
+            currentChat.messages.push({ role: 'user', parts: userParts });
+            localStorage.setItem('gemini_chats', JSON.stringify(chats));
+
+            // UI updates
+            welcomeScreen.classList.add('hidden');
+            chatLog.classList.remove('hidden');
+            appendMessageToDOM('user', userParts);
+
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            const tempFile = attachedFile;
+            removeAttachedFile();
+            sendBtn.disabled = true;
+            scrollToBottom();
+
+            // Append placeholder for model response
+            const modelMsgId = 'model_msg_' + Date.now();
+            appendModelLoadingDOM(modelMsgId);
+            scrollToBottom();
+
+            try {
+                // Prepare contents payload for Gemini API
+                const apiContents = currentChat.messages.map(m => ({
+                    role: m.role === 'user' ? 'user' : 'model',
+                    parts: m.parts.map(p => {
+                        if (p.text) return { text: p.text };
+                        if (p.inlineData) return { inlineData: p.inlineData };
+                        return p;
+                    })
+                }));
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: apiContents })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error?.message || 'API request failed');
+                }
+
+                const data = await response.json();
+                const modelReplyText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
+
+                // Save model reply
+                currentChat.messages.push({ role: 'model', parts: [{ text: modelReplyText }] });
+                localStorage.setItem('gemini_chats', JSON.stringify(chats));
+
+                // Update DOM element with formatted markdown
+                updateModelMessageDOM(modelMsgId, modelReplyText);
+
+            } catch (error) {
+                console.error(error);
+                updateModelMessageDOM(modelMsgId, `**Error:** ${error.message}. Please check your API key and network connection.`);
+            }
+
+            renderChatHistory();
+            scrollToBottom();
+        }
+
+        // DOM Rendering Helpers for Messages
+        function appendMessageToDOM(role, parts) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex space-x-4 w-full ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+
+            if (role === 'user') {
+                let mediaHtml = '';
+                let textContent = '';
+                parts.forEach(p => {
+                    if (p.inlineData) {
+                        mediaHtml += `<img src="data:${p.inlineData.mimeType};base64,${p.inlineData.data}" class="max-w-xs rounded-xl mb-2 border border-gray-200 dark:border-gray-700">`;
+                    }
+                    if (p.text) {
+                        textContent += escapeHtml(p.text);
+                    }
+                });
+
+                messageDiv.innerHTML = `
+                    <div class="max-w-xl bg-[#f0f4f9] dark:bg-[#2b2c2f] px-5 py-3.5 rounded-3xl rounded-tr-sm text-gray-800 dark:text-gray-100 text-sm md:text-base">
+                        ${mediaHtml}
+                        <div class="whitespace-pre-wrap">${textContent}</div>
+                    </div>
+                `;
+            } else {
+                let textContent = parts[0].text || '';
+                const parsedHtml = marked.parse(textContent);
+
+                messageDiv.innerHTML = `
+                    <div class="flex space-x-3 max-w-3xl w-full">
+                        <div class="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0 mt-1">
+                            <i class="fa-solid fa-sparkles text-sm"></i>
+                        </div>
+                        <div class="flex-1 space-y-2 overflow-hidden">
+                            <div class="message-content text-gray-800 dark:text-gray-100 text-sm md:text-base leading-relaxed">
+                                ${parsedHtml}
+                            </div>
+                            <div class="flex items-center space-x-2 pt-1 text-gray-400">
+                                <button onclick="copyToClipboard(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#333537] rounded transition" title="Copy text">
+                                    <i class="fa-regular fa-copy text-xs"></i>
+                                </button>
+                                <button onclick="speakText(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#333537] rounded transition" title="Read aloud">
+                                    <i class="fa-solid fa-volume-high text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            chatLog.appendChild(messageDiv);
+            highlightCodeBlocks(messageDiv);
+        }
+
+        function appendModelLoadingDOM(msgId) {
+            const messageDiv = document.createElement('div');
+            messageDiv.id = msgId;
+            messageDiv.className = `flex space-x-4 w-full justify-start`;
+            messageDiv.innerHTML = `
+                <div class="flex space-x-3 max-w-3xl w-full">
+                    <div class="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0 mt-1 animate-pulse">
+                        <i class="fa-solid fa-sparkles text-sm"></i>
+                    </div>
+                    <div class="flex-1 space-y-2 py-2">
+                        <div class="flex items-center space-x-2 text-gray-400 text-sm">
+                            <span class="inline-block w-2 h-2 rounded-full bg-blue-500 animate-bounce"></span>
+                            <span class="inline-block w-2 h-2 rounded-full bg-blue-500 animate-bounce" style="animation-delay: 0.2s"></span>
+                            <span class="inline-block w-2 h-2 rounded-full bg-blue-500 animate-bounce" style="animation-delay: 0.4s"></span>
+                            <span class="text-xs ml-2">Gemini is thinking...</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatLog.appendChild(messageDiv);
+        }
+
+        function updateModelMessageDOM(msgId, text) {
+            const messageDiv = document.getElementById(msgId);
+            if (!messageDiv) return;
+
+            const parsedHtml = marked.parse(text);
+            messageDiv.innerHTML = `
+                <div class="flex space-x-3 max-w-3xl w-full">
+                    <div class="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0 mt-1">
+                        <i class="fa-solid fa-sparkles text-sm"></i>
+                    </div>
+                    <div class="flex-1 space-y-2 overflow-hidden">
+                        <div class="message-content text-gray-800 dark:text-gray-100 text-sm md:text-base leading-relaxed">
+                            ${parsedHtml}
+                        </div>
+                        <div class="flex items-center space-x-2 pt-1 text-gray-400">
+                            <button onclick="copyToClipboard(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#333537] rounded transition" title="Copy text">
+                                <i class="fa-regular fa-copy text-xs"></i>
+                            </button>
+                            <button onclick="speakText(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#333537] rounded transition" title="Read aloud">
+                                <i class="fa-solid fa-volume-high text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            highlightCodeBlocks(messageDiv);
+        }
+
+        function highlightCodeBlocks(container) {
+            container.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        }
+
+        function scrollToBottom() {
+            chatScrollContainer.scrollTop = chatScrollContainer.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        // Action Utilities
+        function copyToClipboard(btn) {
+            const contentDiv = btn.closest('.flex-1').querySelector('.message-content');
+            navigator.clipboard.writeText(contentDiv.innerText).then(() => {
+                const icon = btn.querySelector('i');
+                icon.className = 'fa-solid fa-check text-xs text-green-500';
+                setTimeout(() => { icon.className = 'fa-regular fa-copy text-xs'; }, 2000);
+            });
+        }
+
+        function speakText(btn) {
+            const contentDiv = btn.closest('.flex-1').querySelector('.message-content');
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(contentDiv.innerText);
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert('Text-to-speech not supported in this browser.');
+            }
+        }
+    </script>
+</body>
+</html>
