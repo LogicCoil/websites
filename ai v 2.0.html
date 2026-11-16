@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniAI - Gemini & Claude Experience</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        omni: {
+                            darkBg: '#18181b',
+                            sidebarDark: '#27272a',
+                            cardDark: '#202023',
+                            borderDark: '#3f3f46',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.js"></script>
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(150, 150, 150, 0.3);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(150, 150, 150, 0.5);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #4285f4, #9b72cb, #d96570);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .message-content pre {
+            background-color: #1e1e1e !important;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 0.75rem;
+            margin-bottom: 0.75rem;
+            overflow-x: auto;
+        }
+        .message-content code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.9em;
+        }
+        .message-content p {
+            margin-bottom: 0.75rem;
+        }
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+        .message-content ul, .message-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 0.75rem;
+            list-style-type: disc;
+        }
+        .message-content ol {
+            list-style-type: decimal;
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-[#18181b] text-gray-800 dark:text-gray-100 h-screen flex flex-col overflow-hidden font-sans transition-colors duration-200">
+
+    <!-- Top Navigation Header -->
+    <header class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-[#3f3f46] bg-white dark:bg-[#18181b] z-20 shrink-0">
+        <div class="flex items-center space-x-3">
+            <button id="sidebarToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#27272a] text-gray-600 dark:text-gray-300 transition" title="Toggle Sidebar">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="startNewChat()">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-orange-500 to-amber-600 flex items-center justify-center text-white shadow-sm">
+                    <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                </div>
+                <span class="text-xl font-semibold tracking-wide">OmniAI</span>
+            </div>
+            <!-- Model Switcher Selector -->
+            <select id="modelSelector" class="hidden sm:block px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-[#27272a] border border-gray-200 dark:border-[#3f3f46] text-xs font-medium outline-none cursor-pointer">
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast & Balanced)</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Intelligence)</option>
+            </select>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <!-- API Key Button -->
+            <button onclick="openApiKeyModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-sm font-medium transition">
+                <i class="fa-solid fa-key"></i>
+                <span class="hidden sm:inline">API Key</span>
+            </button>
+            <!-- Theme Toggle -->
+            <button onclick="toggleTheme()" class="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#27272a] text-gray-600 dark:text-gray-300 transition" title="Toggle Theme">
+                <i id="themeIcon" class="fa-solid fa-moon"></i>
+            </button>
+            <!-- User Avatar -->
+            <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm cursor-pointer shadow-sm">
+                U
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="w-72 bg-gray-50 dark:bg-[#202023] border-r border-gray-200 dark:border-[#3f3f46] flex flex-col transition-all duration-300 absolute md:relative z-10 h-full -translate-x-full md:translate-x-0 shrink-0">
+            <!-- New Chat Button -->
+            <div class="p-3">
+                <button onclick="startNewChat()" class="flex items-center space-x-3 w-full px-4 py-3 rounded-xl bg-gray-200/70 hover:bg-gray-200 dark:bg-[#27272a] dark:hover:bg-[#3f3f46] text-gray-800 dark:text-gray-200 font-medium text-sm transition shadow-sm">
+                    <i class="fa-solid fa-plus text-amber-500"></i>
+                    <span>Start new chat</span>
+                </button>
+            </div>
+
+            <!-- Recent Chats List -->
+            <div class="flex-1 overflow-y-auto px-3 py-2 space-y-1" id="chatHistoryList">
+                <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 px-3 py-2 uppercase tracking-wider">Conversations</div>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-3 border-t border-gray-200 dark:border-[#3f3f46] text-xs text-gray-500 dark:text-gray-400 space-y-2">
+                <div class="flex items-center space-x-2 px-3 py-2 hover:bg-gray-200/50 dark:hover:bg-[#27272a] rounded-lg cursor-pointer" onclick="clearAllHistory()">
+                    <i class="fa-solid fa-trash-can w-4 text-red-500"></i>
+                    <span class="text-red-500 font-medium">Clear conversation history</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#18181b] relative">
+            
+            <!-- Messages Scrollable View -->
+            <div id="chatScrollContainer" class="flex-1 overflow-y-auto px-4 py-6 md:px-24 lg:px-48 space-y-6">
+                
+                <!-- Welcome State -->
+                <div id="welcomeScreen" class="flex flex-col items-center justify-center h-full max-w-3xl mx-auto space-y-8 py-12 text-center">
+                    <div class="space-y-3">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white text-2xl mx-auto shadow-lg">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                        <h1 class="text-3xl md:text-4xl font-bold tracking-tight">
+                            What would you like to create?
+                        </h1>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm md:text-base max-w-lg mx-auto">
+                            Experience state-of-the-art AI reasoning, precise code generation, and multi-turn problem solving.
+                        </p>
+                    </div>
+
+                    <!-- Suggestion Cards (Claude & Gemini hybrid style) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full text-left">
+                        <div onclick="sendSuggestion('Write a fully functional React Todo List app with Tailwind CSS')" class="p-4 rounded-xl bg-gray-50 dark:bg-[#202023] hover:bg-gray-100 dark:hover:bg-[#27272a] cursor-pointer transition border border-gray-200 dark:border-[#3f3f46] group">
+                            <div class="font-medium text-sm text-gray-800 dark:text-gray-200 mb-1">Create React App</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Write a fully functional React Todo List app with Tailwind CSS</div>
+                        </div>
+                        <div onclick="sendSuggestion('Analyze the architectural tradeoffs between SQL and NoSQL databases')" class="p-4 rounded-xl bg-gray-50 dark:bg-[#202023] hover:bg-gray-100 dark:hover:bg-[#27272a] cursor-pointer transition border border-gray-200 dark:border-[#3f3f46] group">
+                            <div class="font-medium text-sm text-gray-800 dark:text-gray-200 mb-1">System Architecture</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Analyze SQL vs NoSQL databases trade-offs</div>
+                        </div>
+                        <div onclick="sendSuggestion('Draft a professional project proposal email for a software upgrade')" class="p-4 rounded-xl bg-gray-50 dark:bg-[#202023] hover:bg-gray-100 dark:hover:bg-[#27272a] cursor-pointer transition border border-gray-200 dark:border-[#3f3f46] group">
+                            <div class="font-medium text-sm text-gray-800 dark:text-gray-200 mb-1">Professional Email</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Draft a project proposal email for a software upgrade</div>
+                        </div>
+                        <div onclick="sendSuggestion('Explain complex asynchronous JavaScript generators with clear code examples')" class="p-4 rounded-xl bg-gray-50 dark:bg-[#202023] hover:bg-gray-100 dark:hover:bg-[#27272a] cursor-pointer transition border border-gray-200 dark:border-[#3f3f46] group">
+                            <div class="font-medium text-sm text-gray-800 dark:text-gray-200 mb-1">JavaScript Deep-Dive</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Explain async generators with code examples</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Log -->
+                <div id="chatLog" class="space-y-6 max-w-3xl mx-auto w-full hidden"></div>
+            </div>
+
+            <!-- Input Bar Section -->
+            <div class="px-4 py-3 bg-white dark:bg-[#18181b] md:px-24 lg:px-48 shrink-0">
+                <div class="max-w-3xl mx-auto">
+                    <div class="relative flex flex-col rounded-2xl bg-gray-50 dark:bg-[#202023] border border-gray-200 dark:border-[#3f3f46] focus-within:border-amber-500 dark:focus-within:border-amber-500 shadow-sm transition">
+                        
+                        <!-- File preview container -->
+                        <div id="filePreviewContainer" class="hidden px-4 pt-3 flex items-center space-x-2">
+                            <div class="relative inline-flex items-center bg-white dark:bg-[#27272a] px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs">
+                                <i class="fa-solid fa-image text-amber-500 mr-2"></i>
+                                <span id="fileName" class="truncate max-w-xs">image.png</span>
+                                <button onclick="removeAttachedFile()" class="ml-2 text-gray-400 hover:text-red-500">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Textarea Input -->
+                        <textarea id="userInput" rows="1" placeholder="Reply to OmniAI..." class="w-full px-4 py-3.5 bg-transparent outline-none resize-none text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm md:text-base max-h-40" oninput="autoResize(this)" onkeydown="handleKeyPress(event)"></textarea>
+
+                        <!-- Action Toolbar -->
+                        <div class="flex items-center justify-between px-3 pb-3">
+                            <div class="flex items-center space-x-1">
+                                <!-- Upload Image/File Button -->
+                                <label class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-[#27272a] text-gray-600 dark:text-gray-300 cursor-pointer transition" title="Attach Image">
+                                    <i class="fa-solid fa-paperclip text-sm"></i>
+                                    <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                                </label>
+                                <!-- Voice Dictation Button -->
+                                <button onclick="toggleVoiceInput()" id="micBtn" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-[#27272a] text-gray-600 dark:text-gray-300 transition" title="Voice Input">
+                                    <i class="fa-solid fa-microphone text-sm"></i>
+                                </button>
+                            </div>
+
+                            <div class="flex items-center space-x-2">
+                                <!-- Send Button -->
+                                <button id="sendBtn" onclick="submitPrompt()" class="p-2.5 rounded-xl bg-gray-200 dark:bg-[#27272a] text-gray-400 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 dark:hover:text-white transition shadow-sm disabled:opacity-40 disabled:cursor-not-allowed" disabled title="Send Message">
+                                    <i class="fa-solid fa-arrow-up text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-2 text-xs text-gray-400 dark:text-gray-500">
+                        OmniAI can make mistakes. Verify critical information.
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- API Key Modal -->
+    <div id="apiKeyModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-[#202023] border border-gray-200 dark:border-[#3f3f46] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold flex items-center space-x-2">
+                    <i class="fa-solid fa-key text-amber-500"></i>
+                    <span>Gemini API Key Setup</span>
+                </h3>
+                <button onclick="closeApiKeyModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                Enter your Google Gemini API key to enable live AI intelligence. Get yours free from <a href="https://aistudio.google.com/" target="_blank" class="text-amber-500 underline">Google AI Studio</a>.
+            </p>
+            <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-[#27272a] border border-gray-300 dark:border-[#3f3f46] outline-none text-sm font-mono">
+            <div class="flex justify-end space-x-3 pt-2">
+                <button onclick="closeApiKeyModal()" class="px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 dark:hover:bg-[#27272a] transition">Cancel</button>
+                <button onclick="saveApiKey()" class="px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium transition shadow">Save Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        let chats = JSON.parse(localStorage.getItem('omni_chats')) || [];
+        let currentChatId = null;
+        let attachedFile = null;
+        let apiKey = localStorage.getItem('omni_api_key') || '';
+        let recognition = null;
+        let isRecording = false;
+
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const welcomeScreen = document.getElementById('welcomeScreen');
+        const chatLog = document.getElementById('chatLog');
+        const chatHistoryList = document.getElementById('chatHistoryList');
+        const chatScrollContainer = document.getElementById('chatScrollContainer');
+        const filePreviewContainer = document.getElementById('filePreviewContainer');
+        const fileNameSpan = document.getElementById('fileName');
+        const modelSelector = document.getElementById('modelSelector');
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderChatHistory();
+            if (chats.length > 0) {
+                loadChat(chats[0].id);
+            }
+            
+            if (localStorage.getItem('theme') === 'light') {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('themeIcon').className = 'fa-solid fa-sun';
+            }
+
+            userInput.addEventListener('input', () => {
+                sendBtn.disabled = !userInput.value.trim() && !attachedFile;
+            });
+        });
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                icon.className = 'fa-solid fa-sun';
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                icon.className = 'fa-solid fa-moon';
+            }
+        }
+
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        });
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight) + 'px';
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitPrompt();
+            }
+        }
+
+        function openApiKeyModal() {
+            document.getElementById('apiKeyInput').value = apiKey;
+            document.getElementById('apiKeyModal').classList.remove('hidden');
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            apiKey = document.getElementById('apiKeyInput').value.trim();
+            localStorage.setItem('omni_api_key', apiKey);
+            closeApiKeyModal();
+            alert('API Key saved successfully!');
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(uploadEvent) {
+                    attachedFile = {
+                        name: file.name,
+                        mimeType: file.type,
+                        data: uploadEvent.target.result.split(',')[1]
+                    };
+                    fileNameSpan.textContent = file.name;
+                    filePreviewContainer.classList.remove('hidden');
+                    sendBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeAttachedFile() {
+            attachedFile = null;
+            filePreviewContainer.classList.add('hidden');
+            document.getElementById('fileInput').value = '';
+            sendBtn.disabled = !userInput.value.trim();
+        }
+
+        function toggleVoiceInput() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Speech recognition is not supported in your browser.');
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (isRecording) {
+                if (recognition) recognition.stop();
+                return;
+            }
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                isRecording = true;
+                document.getElementById('micBtn').classList.add('text-red-500', 'animate-pulse');
+            };
+            recognition.onresult = (event) => {
+                userInput.value = event.results[0][0].transcript;
+                autoResize(userInput);
+                sendBtn.disabled = false;
+            };
+            recognition.onerror = () => stopMic();
+            recognition.onend = () => stopMic();
+            recognition.start();
+        }
+
+        function stopMic() {
+            isRecording = false;
+            document.getElementById('micBtn').classList.remove('text-red-500', 'animate-pulse');
+        }
+
+        function startNewChat() {
+            currentChatId = null;
+            welcomeScreen.classList.remove('hidden');
+            chatLog.classList.add('hidden');
+            chatLog.innerHTML = '';
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            removeAttachedFile();
+            renderChatHistory();
+        }
+
+        function renderChatHistory() {
+            chatHistoryList.innerHTML = '<div class="text-xs font-semibold text-gray-400 dark:text-gray-500 px-3 py-2 uppercase tracking-wider">Conversations</div>';
+            chats.forEach(chat => {
+                const isActive = chat.id === currentChatId;
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer text-sm transition group ${isActive ? 'bg-gray-200 dark:bg-[#3f3f46] font-medium text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-[#27272a] text-gray-700 dark:text-gray-300'}`;
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2 truncate flex-1" onclick="loadChat('${chat.id}')">
+                        <i class="fa-regular fa-message text-xs opacity-70"></i>
+                        <span class="truncate">${escapeHtml(chat.title)}</span>
+                    </div>
+                    <button onclick="deleteChat(event, '${chat.id}')" class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-1 transition">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                `;
+                chatHistoryList.appendChild(item);
+            });
+        }
+
+        function loadChat(chatId) {
+            const chat = chats.find(c => c.id === chatId);
+            if (!chat) return;
+
+            currentChatId = chatId;
+            welcomeScreen.classList.add('hidden');
+            chatLog.classList.remove('hidden');
+            chatLog.innerHTML = '';
+
+            chat.messages.forEach(msg => {
+                appendMessageToDOM(msg.role, msg.parts);
+            });
+
+            renderChatHistory();
+            scrollToBottom();
+        }
+
+        function deleteChat(e, chatId) {
+            e.stopPropagation();
+            chats = chats.filter(c => c.id !== chatId);
+            localStorage.setItem('omni_chats', JSON.stringify(chats));
+            if (currentChatId === chatId) {
+                startNewChat();
+            } else {
+                renderChatHistory();
+            }
+        }
+
+        function clearAllHistory() {
+            if (confirm('Clear all conversation history?')) {
+                chats = [];
+                localStorage.removeItem('omni_chats');
+                startNewChat();
+            }
+        }
+
+        function sendSuggestion(text) {
+            userInput.value = text;
+            autoResize(userInput);
+            submitPrompt();
+        }
+
+        async function submitPrompt() {
+            const text = userInput.value.trim();
+            if (!text && !attachedFile) return;
+
+            if (!apiKey) {
+                if (confirm('No API Key configured. Would you like to enter your Gemini API key now?')) {
+                    openApiKeyModal();
+                }
+                return;
+            }
+
+            if (!currentChatId) {
+                currentChatId = 'chat_' + Date.now();
+                chats.unshift({
+                    id: currentChatId,
+                    title: text.length > 30 ? text.substring(0, 30) + '...' : text,
+                    messages: []
+                });
+            }
+
+            const currentChat = chats.find(c => c.id === currentChatId);
+
+            let userParts = [];
+            if (attachedFile) {
+                userParts.push({
+                    inlineData: {
+                        mimeType: attachedFile.mimeType,
+                        data: attachedFile.data
+                    }
+                });
+            }
+            if (text) {
+                userParts.push({ text: text });
+            }
+
+            currentChat.messages.push({ role: 'user', parts: userParts });
+            localStorage.setItem('omni_chats', JSON.stringify(chats));
+
+            welcomeScreen.classList.add('hidden');
+            chatLog.classList.remove('hidden');
+            appendMessageToDOM('user', userParts);
+
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            removeAttachedFile();
+            sendBtn.disabled = true;
+            scrollToBottom();
+
+            const modelMsgId = 'model_msg_' + Date.now();
+            appendModelLoadingDOM(modelMsgId);
+            scrollToBottom();
+
+            try {
+                const apiContents = currentChat.messages.map(m => ({
+                    role: m.role === 'user' ? 'user' : 'model',
+                    parts: m.parts.map(p => {
+                        if (p.text) return { text: p.text };
+                        if (p.inlineData) return { inlineData: p.inlineData };
+                        return p;
+                    })
+                }));
+
+                const selectedModel = modelSelector.value || 'gemini-2.5-flash';
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: apiContents })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error?.message || 'API request failed');
+                }
+
+                const data = await response.json();
+                const modelReplyText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
+
+                currentChat.messages.push({ role: 'model', parts: [{ text: modelReplyText }] });
+                localStorage.setItem('omni_chats', JSON.stringify(chats));
+
+                updateModelMessageDOM(modelMsgId, modelReplyText);
+
+            } catch (error) {
+                console.error(error);
+                updateModelMessageDOM(modelMsgId, `**Error:** ${error.message}. Please verify your API key and network connection.`);
+            }
+
+            renderChatHistory();
+            scrollToBottom();
+        }
+
+        function appendMessageToDOM(role, parts) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex space-x-4 w-full ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+
+            if (role === 'user') {
+                let mediaHtml = '';
+                let textContent = '';
+                parts.forEach(p => {
+                    if (p.inlineData) {
+                        mediaHtml += `<img src="data:${p.inlineData.mimeType};base64,${p.inlineData.data}" class="max-w-xs rounded-xl mb-2 border border-gray-200 dark:border-gray-700">`;
+                    }
+                    if (p.text) {
+                        textContent += escapeHtml(p.text);
+                    }
+                });
+
+                messageDiv.innerHTML = `
+                    <div class="max-w-xl bg-gray-100 dark:bg-[#27272a] px-5 py-3.5 rounded-2xl rounded-tr-sm text-gray-800 dark:text-gray-100 text-sm md:text-base">
+                        ${mediaHtml}
+                        <div class="whitespace-pre-wrap">${textContent}</div>
+                    </div>
+                `;
+            } else {
+                let textContent = parts[0].text || '';
+                const parsedHtml = marked.parse(textContent);
+
+                messageDiv.innerHTML = `
+                    <div class="flex space-x-3 max-w-3xl w-full">
+                        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white shrink-0 mt-1 shadow-sm">
+                            <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+                        </div>
+                        <div class="flex-1 space-y-2 overflow-hidden">
+                            <div class="message-content text-gray-800 dark:text-gray-100 text-sm md:text-base leading-relaxed">
+                                ${parsedHtml}
+                            </div>
+                            <div class="flex items-center space-x-2 pt-1 text-gray-400">
+                                <button onclick="copyToClipboard(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#27272a] rounded transition" title="Copy text">
+                                    <i class="fa-regular fa-copy text-xs"></i>
+                                </button>
+                                <button onclick="speakText(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#27272a] rounded transition" title="Read aloud">
+                                    <i class="fa-solid fa-volume-high text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            chatLog.appendChild(messageDiv);
+            highlightCodeBlocks(messageDiv);
+        }
+
+        function appendModelLoadingDOM(msgId) {
+            const messageDiv = document.createElement('div');
+            messageDiv.id = msgId;
+            messageDiv.className = `flex space-x-4 w-full justify-start`;
+            messageDiv.innerHTML = `
+                <div class="flex space-x-3 max-w-3xl w-full">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white shrink-0 mt-1 shadow-sm animate-pulse">
+                        <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+                    </div>
+                    <div class="flex-1 space-y-2 py-2">
+                        <div class="flex items-center space-x-2 text-gray-400 text-sm">
+                            <span class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-bounce"></span>
+                            <span class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-bounce" style="animation-delay: 0.2s"></span>
+                            <span class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-bounce" style="animation-delay: 0.4s"></span>
+                            <span class="text-xs ml-2">Generating response...</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatLog.appendChild(messageDiv);
+        }
+
+        function updateModelMessageDOM(msgId, text) {
+            const messageDiv = document.getElementById(msgId);
+            if (!messageDiv) return;
+
+            const parsedHtml = marked.parse(text);
+            messageDiv.innerHTML = `
+                <div class="flex space-x-3 max-w-3xl w-full">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white shrink-0 mt-1 shadow-sm">
+                        <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+                    </div>
+                    <div class="flex-1 space-y-2 overflow-hidden">
+                        <div class="message-content text-gray-800 dark:text-gray-100 text-sm md:text-base leading-relaxed">
+                            ${parsedHtml}
+                        </div>
+                        <div class="flex items-center space-x-2 pt-1 text-gray-400">
+                            <button onclick="copyToClipboard(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#27272a] rounded transition" title="Copy text">
+                                <i class="fa-regular fa-copy text-xs"></i>
+                            </button>
+                            <button onclick="speakText(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#27272a] rounded transition" title="Read aloud">
+                                <i class="fa-solid fa-volume-high text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            highlightCodeBlocks(messageDiv);
+        }
+
+        function highlightCodeBlocks(container) {
+            container.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        }
+
+        function scrollToBottom() {
+            chatScrollContainer.scrollTop = chatScrollContainer.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        function copyToClipboard(btn) {
+            const contentDiv = btn.closest('.flex-1').querySelector('.message-content');
+            navigator.clipboard.writeText(contentDiv.innerText).then(() => {
+                const icon = btn.querySelector('i');
+                icon.className = 'fa-solid fa-check text-xs text-green-500';
+                setTimeout(() => { icon.className = 'fa-regular fa-copy text-xs'; }, 2000);
+            });
+        }
+
+        function speakText(btn) {
+            const contentDiv = btn.closest('.flex-1').querySelector('.message-content');
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(contentDiv.innerText);
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert('Text-to-speech not supported in this browser.');
+            }
+        }
+    </script>
+</body>
+</html>
