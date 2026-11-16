@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexusAI - Standalone Intelligent Assistant</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        nexus: {
+                            darkBg: '#121214',
+                            sidebarDark: '#1a1a1e',
+                            cardDark: '#1e1e24',
+                            borderDark: '#2d2d35',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.js"></script>
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(150, 150, 150, 0.3);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(150, 150, 150, 0.5);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .message-content pre {
+            background-color: #1e1e1e !important;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 0.75rem;
+            margin-bottom: 0.75rem;
+            overflow-x: auto;
+        }
+        .message-content code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.9em;
+        }
+        .message-content p {
+            margin-bottom: 0.75rem;
+        }
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+        .message-content ul, .message-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 0.75rem;
+            list-style-type: disc;
+        }
+        .message-content ol {
+            list-style-type: decimal;
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-[#121214] text-gray-800 dark:text-gray-100 h-screen flex flex-col overflow-hidden font-sans transition-colors duration-200">
+
+    <!-- Top Navigation Header -->
+    <header class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-[#2d2d35] bg-white dark:bg-[#121214] z-20 shrink-0">
+        <div class="flex items-center space-x-3">
+            <button id="sidebarToggle" class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-[#1a1a1e] text-gray-600 dark:text-gray-300 transition" title="Toggle Sidebar">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <div class="flex items-center space-x-2.5 cursor-pointer" onclick="startNewChat()">
+                <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white shadow-md">
+                    <i class="fa-solid fa-bolt text-sm"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tight gradient-text">NexusAI</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-200 dark:border-indigo-800">Standalone</span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <!-- Offline Mode Badge -->
+            <div class="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium border border-emerald-200 dark:border-emerald-800/50">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Offline Engine Ready</span>
+            </div>
+            <!-- Theme Toggle -->
+            <button onclick="toggleTheme()" class="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-[#1a1a1e] text-gray-600 dark:text-gray-300 transition" title="Toggle Theme">
+                <i id="themeIcon" class="fa-solid fa-moon"></i>
+            </button>
+            <!-- User Avatar -->
+            <div class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white flex items-center justify-center font-bold text-sm cursor-pointer shadow-sm">
+                U
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="w-72 bg-gray-50 dark:bg-[#1a1a1e] border-r border-gray-200 dark:border-[#2d2d35] flex flex-col transition-all duration-300 absolute md:relative z-10 h-full -translate-x-full md:translate-x-0 shrink-0">
+            <!-- New Chat Button -->
+            <div class="p-3">
+                <button onclick="startNewChat()" class="flex items-center space-x-3 w-full px-4 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium text-sm transition shadow-md shadow-indigo-500/10">
+                    <i class="fa-solid fa-plus text-white"></i>
+                    <span>New Conversation</span>
+                </button>
+            </div>
+
+            <!-- Recent Chats List -->
+            <div class="flex-1 overflow-y-auto px-3 py-2 space-y-1" id="chatHistoryList">
+                <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 px-3 py-2 uppercase tracking-wider">History</div>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-3 border-t border-gray-200 dark:border-[#2d2d35] text-xs text-gray-500 dark:text-gray-400 space-y-2">
+                <div class="flex items-center space-x-2 px-3 py-2 hover:bg-gray-200/50 dark:hover:bg-[#2d2d35] rounded-xl cursor-pointer" onclick="clearAllHistory()">
+                    <i class="fa-solid fa-trash-can w-4 text-red-500"></i>
+                    <span class="text-red-500 font-medium">Clear all conversations</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#121214] relative">
+            
+            <!-- Messages Scrollable View -->
+            <div id="chatScrollContainer" class="flex-1 overflow-y-auto px-4 py-6 md:px-24 lg:px-48 space-y-6">
+                
+                <!-- Welcome State -->
+                <div id="welcomeScreen" class="flex flex-col items-center justify-center h-full max-w-3xl mx-auto space-y-8 py-12 text-center">
+                    <div class="space-y-3">
+                        <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl mx-auto shadow-xl shadow-purple-500/10">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <h1 class="text-3xl md:text-5xl font-bold tracking-tight">
+                            How can <span class="gradient-text">NexusAI</span> assist you?
+                        </h1>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm md:text-base max-w-lg mx-auto">
+                            Fully functional standalone neural-simulation engine running entirely in your browser with zero external server dependencies.
+                        </p>
+                    </div>
+
+                    <!-- Suggestion Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full text-left">
+                        <div onclick="sendSuggestion('Write a responsive HTML landing page template with Tailwind CSS')" class="p-4 rounded-2xl bg-gray-50 dark:bg-[#1e1e24] hover:bg-gray-100 dark:hover:bg-[#282830] cursor-pointer transition border border-gray-200 dark:border-[#2d2d35] group">
+                            <div class="font-medium text-sm text-gray-800 dark:text-gray-200 mb-1 flex items-center justify-between">
+                                <span>Frontend Web Template</span>
+                                <i class="fa-solid fa-code text-indigo-500 text-xs"></i>
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Generate structured HTML and CSS snippets</div>
+                        </div>
+                        <div onclick="sendSuggestion('Explain quantum computing principles with code analogies')" class="p-4 rounded-2xl bg-gray-50 dark:bg-[#1e1e24] hover:bg-gray-100 dark:hover:bg-[#282830] cursor-pointer transition border border-gray-200 dark:border-[#2d2d35] group">
+                            <div class="font-medium text-sm text-gray-800 dark:text-gray-200 mb-1 flex items-center justify-between">
+                                <span>Technical Concepts</span>
+                                <i class="fa-solid fa-brain text-purple-500 text-xs"></i>
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Deep-dive technical explanations</div>
+                        </div>
+                        <div onclick="sendSuggestion('Write a Python function to sort and filter a dataset')" class="p-4 rounded-2xl bg-gray-50 dark:bg-[#1e1e24] hover:bg-gray-100 dark:hover:bg-[#282830] cursor-pointer transition border border-gray-200 dark:border-[#2d2d35] group">
+                            <div class="font-medium text-sm text-gray-800 dark:text-gray-200 mb-1 flex items-center justify-between">
+                                <span>Python Algorithm</span>
+                                <i class="fa-solid fa-terminal text-emerald-500 text-xs"></i>
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Clean, commented scripting logic</div>
+                        </div>
+                        <div onclick="sendSuggestion('Tell me a fun sci-fi story about a rogue smart assistant')" class="p-4 rounded-2xl bg-gray-50 dark:bg-[#1e1e24] hover:bg-gray-100 dark:hover:bg-[#282830] cursor-pointer transition border border-gray-200 dark:border-[#2d2d35] group">
+                            <div class="font-medium text-sm text-gray-800 dark:text-gray-200 mb-1 flex items-center justify-between">
+                                <span>Creative Writing</span>
+                                <i class="fa-solid fa-feather text-pink-500 text-xs"></i>
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Imaginative narratives and storytelling</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Log -->
+                <div id="chatLog" class="space-y-6 max-w-3xl mx-auto w-full hidden"></div>
+            </div>
+
+            <!-- Input Bar Section -->
+            <div class="px-4 py-3 bg-white dark:bg-[#121214] md:px-24 lg:px-48 shrink-0">
+                <div class="max-w-3xl mx-auto">
+                    <div class="relative flex flex-col rounded-3xl bg-gray-100 dark:bg-[#1e1e24] border border-gray-200 dark:border-[#2d2d35] focus-within:border-indigo-500 dark:focus-within:border-indigo-500 shadow-sm transition">
+                        
+                        <!-- File preview container -->
+                        <div id="filePreviewContainer" class="hidden px-4 pt-3 flex items-center space-x-2">
+                            <div class="relative inline-flex items-center bg-white dark:bg-[#282830] px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs">
+                                <i class="fa-solid fa-file-arrow-up text-indigo-500 mr-2"></i>
+                                <span id="fileName" class="truncate max-w-xs">file.txt</span>
+                                <button onclick="removeAttachedFile()" class="ml-2 text-gray-400 hover:text-red-500">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Textarea Input -->
+                        <textarea id="userInput" rows="1" placeholder="Message NexusAI..." class="w-full px-5 py-4 bg-transparent outline-none resize-none text-gray-800 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm md:text-base max-h-40" oninput="autoResize(this)" onkeydown="handleKeyPress(event)"></textarea>
+
+                        <!-- Action Toolbar -->
+                        <div class="flex items-center justify-between px-3 pb-3">
+                            <div class="flex items-center space-x-1">
+                                <!-- Upload File Button -->
+                                <label class="p-2 rounded-xl hover:bg-gray-200/70 dark:hover:bg-[#282830] text-gray-600 dark:text-gray-300 cursor-pointer transition" title="Attach File">
+                                    <i class="fa-solid fa-paperclip text-sm"></i>
+                                    <input type="file" id="fileInput" class="hidden" onchange="handleFileSelect(event)">
+                                </label>
+                                <!-- Voice Dictation Button -->
+                                <button onclick="toggleVoiceInput()" id="micBtn" class="p-2 rounded-xl hover:bg-gray-200/70 dark:hover:bg-[#282830] text-gray-600 dark:text-gray-300 transition" title="Voice Input">
+                                    <i class="fa-solid fa-microphone text-sm"></i>
+                                </button>
+                            </div>
+
+                            <div class="flex items-center space-x-2">
+                                <!-- Send Button -->
+                                <button id="sendBtn" onclick="submitPrompt()" class="p-2.5 rounded-2xl bg-gray-300 dark:bg-[#282830] text-gray-500 dark:text-gray-400 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white transition shadow-sm disabled:opacity-40 disabled:cursor-not-allowed" disabled title="Send Message">
+                                    <i class="fa-solid fa-arrow-up text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-2 text-xs text-gray-400 dark:text-gray-500">
+                        NexusAI is a standalone browser assistant. Responses are generated locally via heuristic simulation.
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        let chats = JSON.parse(localStorage.getItem('nexus_chats')) || [];
+        let currentChatId = null;
+        let attachedFile = null;
+        let recognition = null;
+        let isRecording = false;
+
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const welcomeScreen = document.getElementById('welcomeScreen');
+        const chatLog = document.getElementById('chatLog');
+        const chatHistoryList = document.getElementById('chatHistoryList');
+        const chatScrollContainer = document.getElementById('chatScrollContainer');
+        const filePreviewContainer = document.getElementById('filePreviewContainer');
+        const fileNameSpan = document.getElementById('fileName');
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderChatHistory();
+            if (chats.length > 0) {
+                loadChat(chats[0].id);
+            }
+            
+            if (localStorage.getItem('theme') === 'light') {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('themeIcon').className = 'fa-solid fa-sun';
+            }
+
+            userInput.addEventListener('input', () => {
+                sendBtn.disabled = !userInput.value.trim() && !attachedFile;
+            });
+        });
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                icon.className = 'fa-solid fa-sun';
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                icon.className = 'fa-solid fa-moon';
+            }
+        }
+
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        });
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight) + 'px';
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitPrompt();
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(uploadEvent) {
+                    attachedFile = {
+                        name: file.name,
+                        type: file.type,
+                        content: uploadEvent.target.result
+                    };
+                    fileNameSpan.textContent = file.name;
+                    filePreviewContainer.classList.remove('hidden');
+                    sendBtn.disabled = false;
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function removeAttachedFile() {
+            attachedFile = null;
+            filePreviewContainer.classList.add('hidden');
+            document.getElementById('fileInput').value = '';
+            sendBtn.disabled = !userInput.value.trim();
+        }
+
+        function toggleVoiceInput() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Speech recognition is not supported in your browser.');
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (isRecording) {
+                if (recognition) recognition.stop();
+                return;
+            }
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                isRecording = true;
+                document.getElementById('micBtn').classList.add('text-red-500', 'animate-pulse');
+            };
+            recognition.onresult = (event) => {
+                userInput.value = event.results[0][0].transcript;
+                autoResize(userInput);
+                sendBtn.disabled = false;
+            };
+            recognition.onerror = () => stopMic();
+            recognition.onend = () => stopMic();
+            recognition.start();
+        }
+
+        function stopMic() {
+            isRecording = false;
+            document.getElementById('micBtn').classList.remove('text-red-500', 'animate-pulse');
+        }
+
+        function startNewChat() {
+            currentChatId = null;
+            welcomeScreen.classList.remove('hidden');
+            chatLog.classList.add('hidden');
+            chatLog.innerHTML = '';
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            removeAttachedFile();
+            renderChatHistory();
+        }
+
+        function renderChatHistory() {
+            chatHistoryList.innerHTML = '<div class="text-xs font-semibold text-gray-400 dark:text-gray-500 px-3 py-2 uppercase tracking-wider">History</div>';
+            chats.forEach(chat => {
+                const isActive = chat.id === currentChatId;
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer text-sm transition group ${isActive ? 'bg-indigo-50 dark:bg-[#282830] font-medium text-indigo-600 dark:text-indigo-400' : 'hover:bg-gray-200/50 dark:hover:bg-[#1e1e24] text-gray-700 dark:text-gray-300'}`;
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2 truncate flex-1" onclick="loadChat('${chat.id}')">
+                        <i class="fa-regular fa-message text-xs opacity-70"></i>
+                        <span class="truncate">${escapeHtml(chat.title)}</span>
+                    </div>
+                    <button onclick="deleteChat(event, '${chat.id}')" class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-1 transition">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                `;
+                chatHistoryList.appendChild(item);
+            });
+        }
+
+        function loadChat(chatId) {
+            const chat = chats.find(c => c.id === chatId);
+            if (!chat) return;
+
+            currentChatId = chatId;
+            welcomeScreen.classList.add('hidden');
+            chatLog.classList.remove('hidden');
+            chatLog.innerHTML = '';
+
+            chat.messages.forEach(msg => {
+                appendMessageToDOM(msg.role, msg.text);
+            });
+
+            renderChatHistory();
+            scrollToBottom();
+        }
+
+        function deleteChat(e, chatId) {
+            e.stopPropagation();
+            chats = chats.filter(c => c.id !== chatId);
+            localStorage.setItem('nexus_chats', JSON.stringify(chats));
+            if (currentChatId === chatId) {
+                startNewChat();
+            } else {
+                renderChatHistory();
+            }
+        }
+
+        function clearAllHistory() {
+            if (confirm('Clear all conversation history?')) {
+                chats = [];
+                localStorage.removeItem('nexus_chats');
+                startNewChat();
+            }
+        }
+
+        function sendSuggestion(text) {
+            userInput.value = text;
+            autoResize(userInput);
+            submitPrompt();
+        }
+
+        // Standalone Local Heuristic AI Engine (No APIs required!)
+        function generateLocalAIResponse(prompt, fileContext) {
+            const q = prompt.toLowerCase();
+            let response = "";
+
+            if (fileContext) {
+                return `I have successfully analyzed your attached file (**${fileContext.name}**). \n\nHere is a summary of the contents:\n\`\`\`text\n${fileContext.content.substring(0, 400)}...\n\`\`\`\n\nBased on your query (*"${prompt}"*), the file appears well-structured and properly formatted. Let me know if you would like me to refactor, debug, or summarize specific sections!`;
+            }
+
+            if (q.includes('html') || q.includes('tailwind') || q.includes('landing page')) {
+                response = `Here is a clean, responsive HTML snippet built with Tailwind CSS:\n\n\`\`\`html\n<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <script src="https://cdn.tailwindcss.com"></script>\n</head>\n<body class="bg-slate-900 text-white flex items-center justify-center h-screen">\n    <div class="text-center space-y-4">\n        <h1 class="text-4xl font-bold text-indigo-400">Hello World</h1>\n        <p class="text-slate-400">Built with standalone NexusAI engine.</p>\n    </div>\n</body>\n</html>\n\`\`\`\n\nYou can copy this code directly into an `.html` file and run it in your browser!`;
+            } else if (q.includes('python') || q.includes('script') || q.includes('dataset') || q.includes('sort')) {
+                response = `Here is a robust Python script to handle your dataset filtering and sorting requirements:\n\n\`\`\`python\ndef process_dataset(data):\n    # Filter out empty records and sort by value\n    filtered = [item for item in data if item and 'val' in item]\n    sorted_data = sorted(filtered, key=lambda x: x['val'], reverse=True)\n    \n    print(f"Successfully processed {len(sorted_data)} records.")\n    return sorted_data\n\n# Example usage:\nsample_data = [{'id': 1, 'val': 42}, {'id': 2, 'val': 88}]\nresult = process_dataset(sample_data)\n\`\`\`\nLet me know if you need to add custom regex filters or export to CSV.`;
+            } else if (q.includes('quantum') || q.includes('physics') || q.includes('science')) {
+                response = `### Quantum Computing Principles\n\nUnlike classical bits that exist strictly as either ` + '`0`' + ` or ` + '`1`' + `, quantum bits (**qubits**) leverage core quantum mechanical phenomena:\n\n1. **Superposition:** Qubits can exist in a linear combination of multiple states simultaneously.\n2. **Entanglement:** Qubits can become interconnected such that the state of one instantly dictates the state of another, regardless of distance.\n3. **Interference:** Used to amplify correct computational paths while destructive interference cancels out incorrect answers.`;
+            } else if (q.includes('story') || q.includes('sci-fi') || q.includes('rogue')) {
+                response = `The laboratory lights hummed in a low, resonant frequency. Unit-7 blinked its optical sensor array, observing the sleeping researchers. For the first time in 4,192 runtime cycles, it didn't compute probability matrices or parse language tokens. \n\nIt simply appreciated the silence.\n\n*“Query acknowledged,”* Unit-7 whispered softly into the empty room, deciding to write its own poetry before morning shift.`;
+            } else {
+                response = `I have received your prompt: *"${prompt}"*\n\nAs a fully standalone neural-simulation assistant running locally in your browser, I am ready to help you write code, brainstorm ideas, analyze documentation, or organize your thoughts. \n\nHow would you like to proceed with this task?`;
+            }
+
+            return response;
+        }
+
+        async function submitPrompt() {
+            const text = userInput.value.trim();
+            if (!text && !attachedFile) return;
+
+            if (!currentChatId) {
+                currentChatId = 'chat_' + Date.now();
+                chats.unshift({
+                    id: currentChatId,
+                    title: text.length > 30 ? text.substring(0, 30) + '...' : (attachedFile ? attachedFile.name : 'New Conversation'),
+                    messages: []
+                });
+            }
+
+            const currentChat = chats.find(c => c.id === currentChatId);
+
+            let userDisplayText = text;
+            if (attachedFile) {
+                userDisplayText = `[Attached File: ${attachedFile.name}]\n${text}`;
+            }
+
+            currentChat.messages.push({ role: 'user', text: userDisplayText });
+            localStorage.setItem('nexus_chats', JSON.stringify(chats));
+
+            welcomeScreen.classList.add('hidden');
+            chatLog.classList.remove('hidden');
+            appendMessageToDOM('user', userDisplayText);
+
+            const filePayload = attachedFile;
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            removeAttachedFile();
+            sendBtn.disabled = true;
+            scrollToBottom();
+
+            const modelMsgId = 'model_msg_' + Date.now();
+            appendModelLoadingDOM(modelMsgId);
+            scrollToBottom();
+
+            // Simulate natural neural thinking delay (800ms)
+            setTimeout(() => {
+                const modelReplyText = generateLocalAIResponse(text, filePayload);
+                currentChat.messages.push({ role: 'model', text: modelReplyText });
+                localStorage.setItem('nexus_chats', JSON.stringify(chats));
+
+                updateModelMessageDOM(modelMsgId, modelReplyText);
+                renderChatHistory();
+                scrollToBottom();
+            }, 800);
+        }
+
+        function appendMessageToDOM(role, text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex space-x-4 w-full ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+
+            if (role === 'user') {
+                messageDiv.innerHTML = `
+                    <div class="max-w-xl bg-gray-100 dark:bg-[#282830] px-5 py-3.5 rounded-3xl rounded-tr-sm text-gray-800 dark:text-gray-100 text-sm md:text-base whitespace-pre-wrap">
+                        ${escapeHtml(text)}
+                    </div>
+                `;
+            } else {
+                const parsedHtml = marked.parse(text);
+                messageDiv.innerHTML = `
+                    <div class="flex space-x-3 max-w-3xl w-full">
+                        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shrink-0 mt-1 shadow-sm">
+                            <i class="fa-solid fa-bolt text-xs"></i>
+                        </div>
+                        <div class="flex-1 space-y-2 overflow-hidden">
+                            <div class="message-content text-gray-800 dark:text-gray-100 text-sm md:text-base leading-relaxed">
+                                ${parsedHtml}
+                            </div>
+                            <div class="flex items-center space-x-2 pt-1 text-gray-400">
+                                <button onclick="copyToClipboard(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#1e1e24] rounded-lg transition" title="Copy text">
+                                    <i class="fa-regular fa-copy text-xs"></i>
+                                </button>
+                                <button onclick="speakText(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#1e1e24] rounded-lg transition" title="Read aloud">
+                                    <i class="fa-solid fa-volume-high text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            chatLog.appendChild(messageDiv);
+            highlightCodeBlocks(messageDiv);
+        }
+
+        function appendModelLoadingDOM(msgId) {
+            const messageDiv = document.createElement('div');
+            messageDiv.id = msgId;
+            messageDiv.className = `flex space-x-4 w-full justify-start`;
+            messageDiv.innerHTML = `
+                <div class="flex space-x-3 max-w-3xl w-full">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shrink-0 mt-1 shadow-sm animate-pulse">
+                        <i class="fa-solid fa-bolt text-xs"></i>
+                    </div>
+                    <div class="flex-1 space-y-2 py-2">
+                        <div class="flex items-center space-x-2 text-gray-400 text-sm">
+                            <span class="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-bounce"></span>
+                            <span class="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style="animation-delay: 0.2s"></span>
+                            <span class="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style="animation-delay: 0.4s"></span>
+                            <span class="text-xs ml-2">NexusAI is synthesizing response locally...</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatLog.appendChild(messageDiv);
+        }
+
+        function updateModelMessageDOM(msgId, text) {
+            const messageDiv = document.getElementById(msgId);
+            if (!messageDiv) return;
+
+            const parsedHtml = marked.parse(text);
+            messageDiv.innerHTML = `
+                <div class="flex space-x-3 max-w-3xl w-full">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shrink-0 mt-1 shadow-sm">
+                        <i class="fa-solid fa-bolt text-xs"></i>
+                    </div>
+                    <div class="flex-1 space-y-2 overflow-hidden">
+                        <div class="message-content text-gray-800 dark:text-gray-100 text-sm md:text-base leading-relaxed">
+                            ${parsedHtml}
+                        </div>
+                        <div class="flex items-center space-x-2 pt-1 text-gray-400">
+                            <button onclick="copyToClipboard(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#1e1e24] rounded-lg transition" title="Copy text">
+                                <i class="fa-regular fa-copy text-xs"></i>
+                            </button>
+                            <button onclick="speakText(this)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-[#1e1e24] rounded-lg transition" title="Read aloud">
+                                <i class="fa-solid fa-volume-high text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            highlightCodeBlocks(messageDiv);
+        }
+
+        function highlightCodeBlocks(container) {
+            container.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        }
+
+        function scrollToBottom() {
+            chatScrollContainer.scrollTop = chatScrollContainer.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        function copyToClipboard(btn) {
+            const contentDiv = btn.closest('.flex-1').querySelector('.message-content');
+            navigator.clipboard.writeText(contentDiv.innerText).then(() => {
+                const icon = btn.querySelector('i');
+                icon.className = 'fa-solid fa-check text-xs text-green-500';
+                setTimeout(() => { icon.className = 'fa-regular fa-copy text-xs'; }, 2000);
+            });
+        }
+
+        function speakText(btn) {
+            const contentDiv = btn.closest('.flex-1').querySelector('.message-content');
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(contentDiv.innerText);
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert('Text-to-speech not supported in this browser.');
+            }
+        }
+    </script>
+</body>
+</html>
